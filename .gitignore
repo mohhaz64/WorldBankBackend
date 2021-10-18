@@ -122,4 +122,4 @@ dist
 .webpack/
 
 # Sqlite file
-.sqlite
+*.sqlite
