@@ -2,12 +2,14 @@ require("dotenv").config()
 const express = require("express")
 const bcrypt = require("bcryptjs")
 const sqlite3 = require("sqlite3")
+const cors = require("cors")
 
 const db = new sqlite3.Database(process.env.DB_HOST)
 const port = process.env.PORT
 
 const app = express()
 app.use(express.json())
+app.use(cors())
 
 app.get("/", (req, res) => {
     res.send("Hello world...")
