@@ -4,6 +4,7 @@ const express = require("express")
 const bcrypt = require("bcryptjs")
 const cors = require("cors")
 
+
 const { PORT, DB_PORT } = process.env
 const { USERSDB_USERNAME, USERSDB_PASSWORD, USERSDB_HOST, USERSDB_DB } =
     process.env
@@ -38,11 +39,56 @@ app.get("/", (req, res) => {
     res.send("Hello world...")
 })
 
-app.get("/all", async (req, res) => {
-    const sqlQ = `SELECT CountryCode, ShortName FROM Theta_Countries LIMIT 3`
-    const queryResult = await client.query(sqlQ, [])
-    console.log(queryResult.rows)
-    res.send("Working...")
+app.get("/allData", async (req, res) => {
+    const client = await pool.connect()
+    const getAllData = `SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View ORDER BY CountryName ASC LIMIT 3`
+    const queryResult = await client.query(getAllData, [])
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
+})
+
+app.get("/search/:countryCode", async (req, res) => {
+    const client = await pool.connect()
+    const countryCode = req.params.countryCode
+    const getAllData =
+        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 ORDER BY Year ASC LIMIT 3"
+    const queryResult = await client.query(getAllData, [countryCode])
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
+})
+
+app.get("/search/:countryCode/:indicatorCode", async (req, res) => {
+    const client = await pool.connect()
+    const countryCode = req.params.countryCode
+    const indicatorCode = req.params.indicatorCode.replaceAll("_", ".")
+    const getAllData =
+        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 AND IndicatorCode = $2 ORDER BY Year ASC LIMIT 3"
+    const queryResult = await client.query(getAllData, [
+        countryCode,
+        indicatorCode,
+    ])
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
+})
+
+app.get("/search/:countryCode/:indicatorCode/:year", async (req, res) => {
+    const client = await pool.connect()
+    const countryCode = req.params.countryCode
+    const indicatorCode = req.params.indicatorCode.replaceAll("_", ".")
+    const year = req.params.year
+    const getAllData =
+        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 AND IndicatorCode = $2 AND Year = $3"
+    const queryResult = await client.query(getAllData, [
+        countryCode,
+        indicatorCode,
+        year,
+    ])
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
 })
 
 app.post("/signup", async (req, res) => {
@@ -63,49 +109,7 @@ app.listen(PORT, () => {
     console.log(`Server started (http://localhost:${PORT}/) !`)
 })
 
-async function createCountriesView() {
-    const createCountriesView = `CREATE VIEW Theta_Countries AS SELECT CountryCode, ShortName FROM countries`
-    await client.query(createCountriesView, [])
+async function createThetaView() {
+    const generateThetaView = `CREATE OR REPLACE VIEW Theta_View AS SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM indicators`
+    await client.query(generateThetaView, [])
 }
-
-// function get(sql, params = []) {
-//     return new Promise((resolve, reject) => {
-//         db.get(sql, params, (err, result) => {
-//             if (err) {
-//                 console.log("Error running sql: " + sql)
-//                 console.log(err)
-//                 reject(err)
-//             } else {
-//                 resolve(result)
-//             }
-//         })
-//     })
-// }
-
-// function all(sql, params = []) {
-//     return new Promise((resolve, reject) => {
-//         db.all(sql, params, (err, rows) => {
-//             if (err) {
-//                 console.log("Error running sql: " + sql)
-//                 console.log(err)
-//                 reject(err)
-//             } else {
-//                 resolve(rows)
-//             }
-//         })
-//     })
-// }
-
-// function run(sql, params = []) {
-//     return new Promise((resolve, reject) => {
-//         db.run(sql, params, function (err) {
-//             if (err) {
-//                 console.log("Error running sql " + sql)
-//                 console.log(err)
-//                 reject(err)
-//             } else {
-//                 resolve({ id: this.lastID })
-//             }
-//         })
-//     })
-// }
