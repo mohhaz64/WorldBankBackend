@@ -123,3 +123,6 @@ dist
 
 # Sqlite file
 *.sqlite
+
+# Http file
+*.http

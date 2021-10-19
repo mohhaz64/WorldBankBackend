@@ -2,7 +2,9 @@ require("dotenv").config()
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 const { Pool, Client } = require("pg")
 const express = require("express")
+const bcrypt = require("bcryptjs")
 const sqlite3 = require("sqlite3")
+const cors = require("cors")
 
 const db = new sqlite3.Database(process.env.DB_HOST)
 const port = process.env.PORT
@@ -20,6 +22,7 @@ createCountriesView()
 
 const app = express()
 app.use(express.json())
+app.use(cors())
 
 app.get("/", (req, res) => {
     res.send("Hello world...")
@@ -33,6 +36,16 @@ app.get("/all", async (req, res) => {
 })
 
 app.post("/signup", async (req, res) => {
+    const { email, password, confirmPassword } = req.body
+    console.log(email, password, confirmPassword)
+    const salt = await bcrypt.genSalt()
+    const hashedPass = await bcrypt.hash(password, salt)
+    res.send("Working...")
+})
+
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body
+    console.log(email, password, confirmPassword)
     res.send("Working...")
 })
 
