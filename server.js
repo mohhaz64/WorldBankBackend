@@ -8,7 +8,7 @@ const { PORT, DB_PORT } = process.env
 const { USERSDB_USERNAME, USERSDB_PASSWORD, USERSDB_HOST, USERSDB_DB } =
     process.env
 const { WBDB_USERNAME, WBDB_PASSWORD, WBDB_HOST, WBDB_DB } = process.env
-//
+
 const usersPool = new Pool({
     user: USERSDB_USERNAME,
     host: USERSDB_HOST,
