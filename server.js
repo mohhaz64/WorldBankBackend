@@ -9,12 +9,17 @@ const { USERSDB_USERNAME, USERSDB_PASSWORD, USERSDB_HOST, USERSDB_DB } =
     process.env
 const { WBDB_USERNAME, WBDB_PASSWORD, WBDB_HOST, WBDB_DB } = process.env
 
+// const usersPool = new Pool({
+//     user: USERSDB_USERNAME,
+//     host: USERSDB_HOST,
+//     database: USERSDB_DB,
+//     password: USERSDB_PASSWORD,
+//     port: DB_PORT,
+// })
+
 const usersPool = new Pool({
-    user: USERSDB_USERNAME,
-    host: USERSDB_HOST,
-    database: USERSDB_DB,
-    password: USERSDB_PASSWORD,
-    port: DB_PORT,
+    connectionString:
+        "postgres://wvaqhyzu:XY_8USt0r719EGGeJAIWFUBkTehInMEX@surus.db.elephantsql.com/wvaqhyzu",
 })
 
 const worldBankPool = new Pool({
@@ -23,13 +28,11 @@ const worldBankPool = new Pool({
     database: WBDB_DB,
     password: WBDB_PASSWORD,
     port: DB_PORT,
-    ssl: true
+    ssl: true,
 })
 
 // Create views
 createThetaView()
-
-//
 
 const app = express()
 app.use(express.json())
@@ -93,16 +96,47 @@ app.get("/search/:countryCode/:indicatorCode/:year", async (req, res) => {
 
 app.post("/signup", async (req, res) => {
     const { email, password, confirmPassword } = req.body
-    console.log(email, password, confirmPassword)
+
     const salt = await bcrypt.genSalt()
     const hashedPass = await bcrypt.hash(password, salt)
-    res.send("Working...")
+
+    const client = await usersPool.connect()
+    const insertUserQuery =
+        "INSERT INTO users (email, hashed_password, salt) values ($1, $2, $3);"
+    const queryResult = await client.query(insertUserQuery, [
+        email,
+        hashedPass,
+        salt,
+    ])
+    res.send(queryResult)
+    res.status(200)
+    client.release()
 })
 
 app.post("/login", async (req, res) => {
     const { email, password } = req.body
-    console.log(email, password, confirmPassword)
-    res.send("Working...")
+    const client = await usersPool.connect()
+    const getAllData = "SELECT hashed_password FROM users WHERE email = $1"
+    let passwordsAreEqual
+    client
+        .query(getAllData, [email])
+        .then(async (queryResult) => {
+            let [hashedPass] = queryResult.rows
+            hashedPass = hashedPass.hashed_password
+            passwordsAreEqual = await bcrypt.compare(password, hashedPass)
+            if (passwordsAreEqual) {
+                res.send("success")
+                res.status(200)
+            } else {
+                res.send("Password is invalid")
+                res.status(400)
+            }
+        })
+        .catch((error) => {
+            res.send({ error })
+            res.status(500)
+        })
+    client.release()
 })
 
 app.listen(PORT, () => {
