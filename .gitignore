@@ -129,3 +129,4 @@ dist
 
 # Http file
 *.http
+yarn.lock
