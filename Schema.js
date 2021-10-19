@@ -12,5 +12,5 @@
 // }
 // createCountriesView()
 
-db.close()
+// db.close()
 
