@@ -1,19 +1,29 @@
 require("dotenv").config()
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
-const { Pool, Client } = require("pg")
+const { Pool } = require("pg")
 const express = require("express")
 const bcrypt = require("bcryptjs")
-const sqlite3 = require("sqlite3")
 const cors = require("cors")
 
-const db = new sqlite3.Database(process.env.DB_HOST)
-const port = process.env.PORT
-const connectionString =
-    "postgresql://doadmin:mEW3kfIjm7w9dnDG@db-postgresql-lon1-54384-do-user-10062307-0.b.db.ondigitalocean.com:25060/data?sslmode=require"
-const client = new Client({
-    connectionString,
+const { PORT, DB_PORT } = process.env
+const { USERSDB_USERNAME, USERSDB_PASSWORD, USERSDB_HOST, USERSDB_DB } =
+    process.env
+const { WBDB_USERNAME, WBDB_PASSWORD, WBDB_HOST, WBDB_DB } = process.env
+
+const usersPool = new Pool({
+    user: USERSDB_USERNAME,
+    host: USERSDB_HOST,
+    database: USERSDB_DB,
+    password: USERSDB_PASSWORD,
+    port: DB_PORT,
 })
-client.connect()
+
+const worldBankPool = new Pool({
+    user: WBDB_USERNAME,
+    host: WBDB_HOST,
+    database: WBDB_DB,
+    password: WBDB_PASSWORD,
+    port: DB_PORT,
+})
 
 // Create views
 createCountriesView()
@@ -49,8 +59,8 @@ app.post("/login", async (req, res) => {
     res.send("Working...")
 })
 
-app.listen(port, () => {
-    console.log(`Server started (http://localhost:${port}/) !`)
+app.listen(PORT, () => {
+    console.log(`Server started (http://localhost:${PORT}/) !`)
 })
 
 async function createCountriesView() {
