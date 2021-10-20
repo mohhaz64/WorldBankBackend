@@ -45,6 +45,33 @@ app.get("/allData", async (req, res) => {
     client.release()
 })
 
+app.get("/distinctCountries", async (req, res) => {
+    const client = await worldBankPool.connect()
+    const queryForDistinctCountries = `SELECT DISTINCT CountryName FROM Theta_View ORDER BY CountryName ASC LIMIT 5`
+    const queryResult = await client.query(queryForDistinctCountries, [])
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
+})
+
+app.get("/distinctIndicators", async (req, res) => {
+    const client = await worldBankPool.connect()
+    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName FROM Theta_View ORDER BY IndicatorName ASC LIMIT 5`
+    const queryResult = await client.query(queryForDistinctIndicators, [])
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
+})
+
+app.get("/distinctYears", async (req, res) => {
+    const client = await worldBankPool.connect()
+    const queryForDistinctYears = `SELECT DISTINCT Year FROM Theta_View ORDER BY Year DESC LIMIT 5`
+    const queryResult = await client.query(queryForDistinctYears, [])
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
+})
+
 app.get("/search/:countryCode", async (req, res) => {
     const client = await worldBankPool.connect()
     const countryCode = req.params.countryCode
