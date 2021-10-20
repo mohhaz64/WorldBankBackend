@@ -4,6 +4,10 @@ const express = require("express")
 const bcrypt = require("bcryptjs")
 const cors = require("cors")
 
+const validation = require("./Middleware/validation")
+const userLoginSchema = require("./Validation/userLoginValidation")
+const userSignUpSchema = require("./Validation/userSignUpValidation")
+
 const { PORT, DB_PORT } = process.env
 const { USERSDB_USERNAME, USERSDB_PASSWORD, USERSDB_HOST, USERSDB_DB } =
     process.env
@@ -45,8 +49,7 @@ app.get("/allData", async (req, res) => {
     const client = await worldBankPool.connect()
     const queryForAllData = `SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View ORDER BY CountryName ASC LIMIT 3`
     const queryResult = await client.query(queryForAllData, [])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
@@ -54,8 +57,7 @@ app.get("/distinctCountries", async (req, res) => {
     const client = await worldBankPool.connect()
     const queryForDistinctCountries = `SELECT DISTINCT CountryName FROM Theta_View ORDER BY CountryName ASC LIMIT 5`
     const queryResult = await client.query(queryForDistinctCountries, [])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
@@ -63,8 +65,7 @@ app.get("/distinctIndicators", async (req, res) => {
     const client = await worldBankPool.connect()
     const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName FROM Theta_View ORDER BY IndicatorName ASC LIMIT 5`
     const queryResult = await client.query(queryForDistinctIndicators, [])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
@@ -72,8 +73,7 @@ app.get("/distinctYears", async (req, res) => {
     const client = await worldBankPool.connect()
     const queryForDistinctYears = `SELECT DISTINCT Year FROM Theta_View ORDER BY Year DESC LIMIT 5`
     const queryResult = await client.query(queryForDistinctYears, [])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
@@ -82,9 +82,9 @@ app.get("/search/:countryCode", async (req, res) => {
     const countryCode = req.params.countryCode
     const queryForCountry =
         "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 ORDER BY Year ASC LIMIT 3"
+    
     const queryResult = await client.query(queryForCountry, [countryCode])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
@@ -98,8 +98,7 @@ app.get("/search/:countryCode/:indicatorCode", async (req, res) => {
         countryCode,
         indicatorCode,
     ])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
@@ -115,12 +114,11 @@ app.get("/search/:countryCode/:indicatorCode/:year", async (req, res) => {
         indicatorCode,
         year,
     ])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
-app.post("/signup", async (req, res) => {
+app.post("/signup", validation(userSignUpSchema), async (req, res) => {
     const { email, password, confirmPassword } = req.body
 
     const salt = await bcrypt.genSalt()
@@ -129,18 +127,20 @@ app.post("/signup", async (req, res) => {
     const client = await usersPool.connect()
     const insertUserQuery =
         "INSERT INTO users (email, hashed_password, salt) values ($1, $2, $3);"
-    const queryResult = await client.query(insertUserQuery, [
-        email,
-        hashedPass,
-        salt,
-    ])
-    res.send(queryResult)
-    res.status(200)
+    client
+        .query(insertUserQuery, [email, hashedPass, salt])
+        .then(() => {
+            res.send("Successfully created user").status(200)
+        })
+        .catch((error) => {
+            res.send(error).status(500)
+        })
     client.release()
 })
 
-app.post("/login", async (req, res) => {
+app.get("/login", validation(userLoginSchema), async (req, res) => {
     const { email, password } = req.body
+
     const client = await usersPool.connect()
     const getAllData = "SELECT hashed_password FROM users WHERE email = $1"
     let passwordsAreEqual
@@ -151,16 +151,13 @@ app.post("/login", async (req, res) => {
             hashedPass = hashedPass.hashed_password
             passwordsAreEqual = await bcrypt.compare(password, hashedPass)
             if (passwordsAreEqual) {
-                res.send("success")
-                res.status(200)
+                res.send("success").status(200)
             } else {
-                res.send("Password is invalid")
-                res.status(400)
+                res.send("Password is invalid").status(400)
             }
         })
         .catch((error) => {
-            res.send({ error })
-            res.status(500)
+            res.send({ error }).status(500)
         })
     client.release()
 })
