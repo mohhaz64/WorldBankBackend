@@ -4,6 +4,10 @@ const express = require("express")
 const bcrypt = require("bcryptjs")
 const cors = require("cors")
 
+const validation = require("./Middleware/validation")
+const userLoginSchema = require("./Validation/userLoginValidation")
+const userSignUpSchema = require("./Validation/userSignUpValidation")
+
 const { PORT, DB_PORT } = process.env
 const { USERSDB_USERNAME, USERSDB_PASSWORD, USERSDB_HOST, USERSDB_DB } =
     process.env
@@ -36,7 +40,6 @@ const worldBankPool = new Pool({
     ssl: true,
 })
 
-// Create views
 createThetaView()
 
 const app = express()
@@ -49,57 +52,102 @@ app.get("/", (req, res) => {
 
 app.get("/allData", async (req, res) => {
     const client = await worldBankPool.connect()
-    const getAllData = `SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View ORDER BY CountryName ASC LIMIT 3`
-    const queryResult = await client.query(getAllData, [])
-    res.send(queryResult.rows)
-    res.status(200)
+    const queryForAllData = `SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View ORDER BY CountryName ASC LIMIT 3`
+    const queryResult = await client.query(queryForAllData, [])
+    res.send(queryResult.rows).status(200)
+    client.release()
+})
+
+app.get("/distinctCountries", async (req, res) => {
+    const client = await worldBankPool.connect()
+    const queryForDistinctCountries = `SELECT DISTINCT CountryName FROM Theta_View ORDER BY CountryName ASC`
+    const queryResult = await client.query(queryForDistinctCountries, [])
+    res.send(queryResult.rows).status(200)
+    client.release()
+})
+
+app.get("/distinctIndicators", async (req, res) => {
+    const client = await worldBankPool.connect()
+    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC LIMIT 20`
+    const queryResult = await client.query(queryForDistinctIndicators, [])
+    res.send(queryResult.rows).status(200)
+    client.release()
+})
+
+app.get("/distinctYears", async (req, res) => {
+    const client = await worldBankPool.connect()
+    const queryForDistinctYears = `SELECT DISTINCT Year FROM Theta_View ORDER BY Year DESC`
+    const queryResult = await client.query(queryForDistinctYears, [])
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
 app.get("/search/:countryCode", async (req, res) => {
     const client = await worldBankPool.connect()
     const countryCode = req.params.countryCode
-    const getAllData =
+    const queryForCountry =
         "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 ORDER BY Year ASC LIMIT 3"
-    const queryResult = await client.query(getAllData, [countryCode])
-    res.send(queryResult.rows)
-    res.status(200)
+    
+    const queryResult = await client.query(queryForCountry, [countryCode])
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
-app.get("/search/:countryCode/:indicatorCode", async (req, res) => {
+app.get("/search/:countryName/:indicatorCode", async (req, res) => {
     const client = await worldBankPool.connect()
-    const countryCode = req.params.countryCode
-    const indicatorCode = req.params.indicatorCode.replaceAll("_", ".")
-    const getAllData =
-        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 AND IndicatorCode = $2 ORDER BY Year ASC LIMIT 3"
-    const queryResult = await client.query(getAllData, [
-        countryCode,
+    const countryName = req.params.countryName
+    const indicatorCode = req.params.indicatorCode
+    const queryForCountryIndicator =
+        "SELECT CountryName, IndicatorName, Year, Value FROM Theta_View WHERE CountryName = $1 AND IndicatorCode = $2 ORDER BY Year ASC"
+    const queryResult = await client.query(queryForCountryIndicator, [
+        countryName,
         indicatorCode,
     ])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
-app.get("/search/:countryCode/:indicatorCode/:year", async (req, res) => {
+app.get("/search/:countryName/:indicatorCode/:year", async (req, res) => {
     const client = await worldBankPool.connect()
-    const countryCode = req.params.countryCode
-    const indicatorCode = req.params.indicatorCode.replaceAll("_", ".")
+    const countryName = req.params.countryName
+    const indicatorCode = req.params.indicatorCode
     const year = req.params.year
-    const getAllData =
-        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 AND IndicatorCode = $2 AND Year = $3"
-    const queryResult = await client.query(getAllData, [
-        countryCode,
+    const queryForCountryIndicatorYear =
+        "SELECT Year, Value FROM Theta_View WHERE countryName = $1 AND IndicatorCode = $2 AND Year = $3"
+    const queryResult = await client.query(queryForCountryIndicatorYear, [
+        countryName,
         indicatorCode,
         year,
     ])
-    res.send(queryResult.rows)
-    res.status(200)
+    res.send(queryResult.rows).status(200)
     client.release()
 })
 
-app.post("/signup", async (req, res) => {
+app.get(
+    "/search/:countryName/:indicatorCode/:lowerYear/:upperYear",
+    async (req, res) => {
+        const client = await worldBankPool.connect()
+        const countryName = req.params.countryName
+        const indicatorCode = req.params.indicatorCode
+        const lowerYear = req.params.lowerYear
+        const upperYear = req.params.upperYear
+        const queryForCountryIndicatorYear =
+            "SELECT CountryName, IndicatorName, Year, Value FROM Theta_View WHERE countryName = $1 AND IndicatorCode = $2 AND Year BETWEEN $3 AND $4"
+        const queryResult = await client.query(queryForCountryIndicatorYear, [
+            countryName,
+            indicatorCode,
+            lowerYear,
+            upperYear,
+        ])
+        console.log(queryResult.rows)
+        res.send(queryResult.rows)
+        res.status(200)
+        client.release()
+    }
+)
+
+
+app.post("/signup", validation(userSignUpSchema), async (req, res) => {
     const { email, password, confirmPassword } = req.body
 
     const salt = await bcrypt.genSalt()
@@ -108,18 +156,20 @@ app.post("/signup", async (req, res) => {
     const client = await usersPool.connect()
     const insertUserQuery =
         "INSERT INTO users (email, hashed_password, salt) values ($1, $2, $3);"
-    const queryResult = await client
+    client
         .query(insertUserQuery, [email, hashedPass, salt])
-        .catch((error) => {
-            res.send(error)
+        .then(() => {
+            res.send("Successfully created user").status(200)
         })
-    res.send(queryResult)
-    res.status(200)
+        .catch((error) => {
+            res.send(error).status(500)
+        })
     client.release()
 })
 
-app.post("/login", async (req, res) => {
+app.post("/login", validation(userLoginSchema), async (req, res) => {
     const { email, password } = req.body
+
     const client = await usersPool.connect()
     const getAllData = "SELECT hashed_password FROM users WHERE email = $1"
     let passwordsAreEqual
@@ -130,18 +180,13 @@ app.post("/login", async (req, res) => {
             hashedPass = hashedPass.hashed_password
             passwordsAreEqual = await bcrypt.compare(password, hashedPass)
             if (passwordsAreEqual) {
-                res.send("success")
-                res.status(200)
+                res.send("success").status(200)
             } else {
-                res.send("Password is invalid")
-                res.status(400)
+                res.send("Password is invalid").status(400)
             }
         })
         .catch((error) => {
-            console.log("error found")
-            console.log(error)
-            res.send({ error })
-            res.status(500)
+            res.send({ error }).status(500)
         })
     client.release()
 })
