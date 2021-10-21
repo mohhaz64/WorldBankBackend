@@ -68,7 +68,7 @@ app.get("/distinctCountries", async (req, res) => {
 
 app.get("/distinctIndicators", async (req, res) => {
     const client = await worldBankPool.connect()
-    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC LIMIT 20`
+    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC`
     const queryResult = await client.query(queryForDistinctIndicators, [])
     res.send(queryResult.rows).status(200)
     client.release()
@@ -78,17 +78,6 @@ app.get("/distinctYears", async (req, res) => {
     const client = await worldBankPool.connect()
     const queryForDistinctYears = `SELECT DISTINCT Year FROM Theta_View ORDER BY Year DESC`
     const queryResult = await client.query(queryForDistinctYears, [])
-    res.send(queryResult.rows).status(200)
-    client.release()
-})
-
-app.get("/search/:countryCode", async (req, res) => {
-    const client = await worldBankPool.connect()
-    const countryCode = req.params.countryCode
-    const queryForCountry =
-        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 ORDER BY Year ASC LIMIT 3"
-    
-    const queryResult = await client.query(queryForCountry, [countryCode])
     res.send(queryResult.rows).status(200)
     client.release()
 })
@@ -139,13 +128,11 @@ app.get(
             lowerYear,
             upperYear,
         ])
-        console.log(queryResult.rows)
         res.send(queryResult.rows)
         res.status(200)
         client.release()
     }
 )
-
 
 app.post("/signup", validation(userSignUpSchema), async (req, res) => {
     const { email, password, confirmPassword } = req.body
