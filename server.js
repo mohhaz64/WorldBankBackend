@@ -55,7 +55,7 @@ app.get("/allData", async (req, res) => {
 
 app.get("/distinctCountries", async (req, res) => {
     const client = await worldBankPool.connect()
-    const queryForDistinctCountries = `SELECT DISTINCT CountryName FROM Theta_View ORDER BY CountryName ASC LIMIT 5`
+    const queryForDistinctCountries = `SELECT DISTINCT CountryName FROM Theta_View ORDER BY CountryName ASC`
     const queryResult = await client.query(queryForDistinctCountries, [])
     res.send(queryResult.rows).status(200)
     client.release()
@@ -63,7 +63,7 @@ app.get("/distinctCountries", async (req, res) => {
 
 app.get("/distinctIndicators", async (req, res) => {
     const client = await worldBankPool.connect()
-    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName FROM Theta_View ORDER BY IndicatorName ASC LIMIT 5`
+    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC LIMIT 20`
     const queryResult = await client.query(queryForDistinctIndicators, [])
     res.send(queryResult.rows).status(200)
     client.release()
@@ -71,7 +71,7 @@ app.get("/distinctIndicators", async (req, res) => {
 
 app.get("/distinctYears", async (req, res) => {
     const client = await worldBankPool.connect()
-    const queryForDistinctYears = `SELECT DISTINCT Year FROM Theta_View ORDER BY Year DESC LIMIT 5`
+    const queryForDistinctYears = `SELECT DISTINCT Year FROM Theta_View ORDER BY Year DESC`
     const queryResult = await client.query(queryForDistinctYears, [])
     res.send(queryResult.rows).status(200)
     client.release()
@@ -88,35 +88,59 @@ app.get("/search/:countryCode", async (req, res) => {
     client.release()
 })
 
-app.get("/search/:countryCode/:indicatorCode", async (req, res) => {
+app.get("/search/:countryName/:indicatorCode", async (req, res) => {
     const client = await worldBankPool.connect()
-    const countryCode = req.params.countryCode
-    const indicatorCode = req.params.indicatorCode.replaceAll("_", ".")
+    const countryName = req.params.countryName
+    const indicatorCode = req.params.indicatorCode
     const queryForCountryIndicator =
-        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 AND IndicatorCode = $2 ORDER BY Year ASC LIMIT 3"
+        "SELECT CountryName, IndicatorName, Year, Value FROM Theta_View WHERE CountryName = $1 AND IndicatorCode = $2 ORDER BY Year ASC"
     const queryResult = await client.query(queryForCountryIndicator, [
-        countryCode,
+        countryName,
         indicatorCode,
     ])
     res.send(queryResult.rows).status(200)
     client.release()
 })
 
-app.get("/search/:countryCode/:indicatorCode/:year", async (req, res) => {
+app.get("/search/:countryName/:indicatorCode/:year", async (req, res) => {
     const client = await worldBankPool.connect()
-    const countryCode = req.params.countryCode
-    const indicatorCode = req.params.indicatorCode.replaceAll("_", ".")
+    const countryName = req.params.countryName
+    const indicatorCode = req.params.indicatorCode
     const year = req.params.year
     const queryForCountryIndicatorYear =
-        "SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View WHERE CountryCode = $1 AND IndicatorCode = $2 AND Year = $3"
+        "SELECT Year, Value FROM Theta_View WHERE countryName = $1 AND IndicatorCode = $2 AND Year = $3"
     const queryResult = await client.query(queryForCountryIndicatorYear, [
-        countryCode,
+        countryName,
         indicatorCode,
         year,
     ])
     res.send(queryResult.rows).status(200)
     client.release()
 })
+
+app.get(
+    "/search/:countryName/:indicatorCode/:lowerYear/:upperYear",
+    async (req, res) => {
+        const client = await worldBankPool.connect()
+        const countryName = req.params.countryName
+        const indicatorCode = req.params.indicatorCode
+        const lowerYear = req.params.lowerYear
+        const upperYear = req.params.upperYear
+        const queryForCountryIndicatorYear =
+            "SELECT CountryName, IndicatorName, Year, Value FROM Theta_View WHERE countryName = $1 AND IndicatorCode = $2 AND Year BETWEEN $3 AND $4"
+        const queryResult = await client.query(queryForCountryIndicatorYear, [
+            countryName,
+            indicatorCode,
+            lowerYear,
+            upperYear,
+        ])
+        console.log(queryResult.rows)
+        res.send(queryResult.rows)
+        res.status(200)
+        client.release()
+    }
+)
+
 
 app.post("/signup", validation(userSignUpSchema), async (req, res) => {
     const { email, password, confirmPassword } = req.body
