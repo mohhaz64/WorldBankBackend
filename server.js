@@ -114,7 +114,7 @@ app.post("/signup", validation(userSignUpSchema), async (req, res) => {
     client.release()
 })
 
-app.get("/login", validation(userLoginSchema), async (req, res) => {
+app.post("/login", validation(userLoginSchema), async (req, res) => {
     const { email, password } = req.body
 
     const client = await usersPool.connect()
