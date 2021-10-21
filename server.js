@@ -25,6 +25,11 @@ const usersPool = new Pool({
     connectionString:
         "postgres://wvaqhyzu:XY_8USt0r719EGGeJAIWFUBkTehInMEX@surus.db.elephantsql.com/wvaqhyzu",
 })
+// Do we need to make a history pool or can we reuse users Pool (the links are identical)?
+const historyPool = new Pool({
+    connectionString:
+        "postgres://wvaqhyzu:XY_8USt0r719EGGeJAIWFUBkTehInMEX@surus.db.elephantsql.com/wvaqhyzu",
+})
 
 const worldBankPool = new Pool({
     user: WBDB_USERNAME,
@@ -183,6 +188,41 @@ app.post("/login", validation(userLoginSchema), async (req, res) => {
         .catch((error) => {
             res.send({ error }).status(500)
         })
+    client.release()
+})
+
+app.get("/history", async (req, res) => {
+    const { user_id } = req.body
+    const client = await historyPool.connect()
+    let getAllHistory
+    user_id === undefined //or admin ID no.
+        ? (getAllHistory = "SELECT * FROM history") //May need to limit this later
+        : (getAllHistory = "SELECT * FROM history WHERE user_id= $1")
+    const queryResult = await client
+        .query(getAllHistory)
+        .catch((error) => console.log("ERROR BRO! " + error))
+    res.send(queryResult.rows)
+    res.status(200)
+    client.release()
+})
+
+app.get("/username/:userId", async (req, res) => {
+    const user_id = req.params.userId
+    console.log("userid is...")
+    console.log(user_id)
+    if (user_id === "undefined" || undefined) {
+        res.send("Error")
+        res.status(400)
+    }
+    const client = await historyPool.connect()
+    const getUsername = "SELECT email FROM users WHERE user_id = $1"
+    const queryResult = await client
+        .query(getUsername, [user_id])
+        .catch((error) => console.log("ERROR BRO! " + error))
+    if (user_id !== undefined || "undefined") {
+        res.send(queryResult.rows)
+        res.status(200)
+    }
     client.release()
 })
 
