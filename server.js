@@ -24,7 +24,7 @@ createThetaView()
 
 const whitelist = [
     "http://localhost:3000",
-    "https://secure-bayou-25544.herokuapp.com",
+    "https://world-bank-indicators.netlify.app",
 ]
 const corsOptions = {
     credentials: true, // This is important.
@@ -37,7 +37,7 @@ const corsOptions = {
 
 const app = express()
 app.use(express.json())
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(cookieParser())
 
 app.get("/sessions", (req, res) => {
