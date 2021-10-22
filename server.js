@@ -10,31 +10,14 @@ const validation = require("./Middleware/validation")
 const userLoginSchema = require("./Validation/userLoginValidation")
 const userSignUpSchema = require("./Validation/userSignUpValidation")
 
-const { PORT, DB_PORT } = process.env
-const { USERSDB_USERNAME, USERSDB_PASSWORD, USERSDB_HOST, USERSDB_DB } =
-    process.env
-const { WBDB_USERNAME, WBDB_PASSWORD, WBDB_HOST, WBDB_DB } = process.env
-
-// const usersPool = new Pool({
-//     user: USERSDB_USERNAME,
-//     host: USERSDB_HOST,
-//     database: USERSDB_DB,
-//     password: USERSDB_PASSWORD,
-//     port: DB_PORT,
-// })
+const { PORT, USERSDB_CONN_STR, WBDB_CONN_STR } = process.env
 
 const usersPool = new Pool({
-    connectionString:
-        "postgres://wvaqhyzu:XY_8USt0r719EGGeJAIWFUBkTehInMEX@surus.db.elephantsql.com/wvaqhyzu",
+    connectionString: USERSDB_CONN_STR,
 })
 
 const worldBankPool = new Pool({
-    user: WBDB_USERNAME,
-    host: WBDB_HOST,
-    database: WBDB_DB,
-    password: WBDB_PASSWORD,
-    port: DB_PORT,
-    ssl: true,
+    connectionString: WBDB_CONN_STR,
 })
 
 createThetaView()
@@ -252,7 +235,7 @@ app.get("/username/:userId", async (req, res) => {
 })
 
 app.listen(PORT, () => {
-    console.log(`Server started (http://localhost:${PORT}/) !`)
+    console.log(`Server started!`)
 })
 
 async function createThetaView() {
