@@ -70,7 +70,7 @@ app.get("/distinctCountries", async (req, res) => {
 
 app.get("/distinctIndicators", async (req, res) => {
     const client = await worldBankPool.connect()
-    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC LIMIT 10`
+    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC`
     const queryResult = await client.query(queryForDistinctIndicators, [])
     res.status(200).send(queryResult.rows)
     client.release()
@@ -198,8 +198,9 @@ app.get("/history", async (req, res) => {
     const client = await usersPool.connect()
     let getAllHistory
     user_id === undefined //or admin ID no.
-        ? (getAllHistory = "SELECT * FROM history") //May need to limit this later
-        : (getAllHistory = "SELECT * FROM history WHERE user_id= $1")
+        ? (getAllHistory = "SELECT * FROM history ORDER BY date_time DESC") //May need to limit this later
+        : (getAllHistory =
+              "SELECT * FROM history WHERE user_id= $1 ORDER BY date_time DESC")
     const queryResult = await client
         .query(getAllHistory)
         .catch((error) => console.log("ERROR BRO! " + error))
@@ -208,9 +209,16 @@ app.get("/history", async (req, res) => {
 })
 
 app.post("/postHistory", async (req, res) => {
-    const { countryOne, countryTwo, indicatorName, yearOne, yearTwo, user_id } =
+    const { countryOne, countryTwo, indicatorCode, yearOne, yearTwo, user_id } =
         req.body
     const client = await usersPool.connect()
+    const clientWorldBank = await worldBankPool.connect()
+    const queryIndicatorName = await clientWorldBank.query(
+        "SELECT DISTINCT indicatorName FROM Theta_View WHERE indicatorCode = $1",
+        [indicatorCode]
+    )
+    const indicatorName = queryIndicatorName.rows[0].indicatorname
+    clientWorldBank.release()
     const postHistory =
         "INSERT INTO history (country_1, country_2, indicator, year_1, year_2, user_id) VALUES ($1, $2, $3, $4, $5, $6)"
     const queryResult = await client
