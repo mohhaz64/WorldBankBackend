@@ -3,6 +3,8 @@ const { Pool } = require("pg")
 const express = require("express")
 const bcrypt = require("bcryptjs")
 const cors = require("cors")
+const { v4: uuidv4 } = require("uuid")
+const cookieParser = require("cookie-parser")
 
 const validation = require("./Middleware/validation")
 const userLoginSchema = require("./Validation/userLoginValidation")
@@ -25,11 +27,6 @@ const usersPool = new Pool({
     connectionString:
         "postgres://wvaqhyzu:XY_8USt0r719EGGeJAIWFUBkTehInMEX@surus.db.elephantsql.com/wvaqhyzu",
 })
-// Do we need to make a history pool or can we reuse users Pool (the links are identical)?
-const historyPool = new Pool({
-    connectionString:
-        "postgres://wvaqhyzu:XY_8USt0r719EGGeJAIWFUBkTehInMEX@surus.db.elephantsql.com/wvaqhyzu",
-})
 
 const worldBankPool = new Pool({
     user: WBDB_USERNAME,
@@ -42,35 +39,40 @@ const worldBankPool = new Pool({
 
 createThetaView()
 
+const whitelist = ["http://localhost:3000"]
+const corsOptions = {
+    credentials: true, // This is important.
+    origin: (origin, callback) => {
+        if (whitelist.includes(origin)) return callback(null, true)
+
+        callback(new Error("Not allowed by CORS"))
+    },
+}
+
 const app = express()
 app.use(express.json())
-app.use(cors())
+app.use(cors(corsOptions))
+app.use(cookieParser())
 
-app.get("/", (req, res) => {
-    res.send("Hello world...")
-})
-
-app.get("/allData", async (req, res) => {
-    const client = await worldBankPool.connect()
-    const queryForAllData = `SELECT CountryCode, CountryName, IndicatorCode, IndicatorName, Year, Value FROM Theta_View ORDER BY CountryName ASC LIMIT 3`
-    const queryResult = await client.query(queryForAllData, [])
-    res.send(queryResult.rows).status(200)
-    client.release()
+app.get("/sessions", (req, res) => {
+    if (req.cookies.worldBankAppSessionID) {
+        res.status(200).send("success")
+    }
 })
 
 app.get("/distinctCountries", async (req, res) => {
     const client = await worldBankPool.connect()
     const queryForDistinctCountries = `SELECT DISTINCT CountryName FROM Theta_View ORDER BY CountryName ASC`
     const queryResult = await client.query(queryForDistinctCountries, [])
-    res.send(queryResult.rows).status(200)
+    res.status(200).send(queryResult.rows)
     client.release()
 })
 
 app.get("/distinctIndicators", async (req, res) => {
     const client = await worldBankPool.connect()
-    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC`
+    const queryForDistinctIndicators = `SELECT DISTINCT IndicatorName, IndicatorCode FROM Theta_View ORDER BY IndicatorName ASC LIMIT 10`
     const queryResult = await client.query(queryForDistinctIndicators, [])
-    res.send(queryResult.rows).status(200)
+    res.status(200).send(queryResult.rows)
     client.release()
 })
 
@@ -78,7 +80,7 @@ app.get("/distinctYears", async (req, res) => {
     const client = await worldBankPool.connect()
     const queryForDistinctYears = `SELECT DISTINCT Year FROM Theta_View ORDER BY Year DESC`
     const queryResult = await client.query(queryForDistinctYears, [])
-    res.send(queryResult.rows).status(200)
+    res.status(200).send(queryResult.rows)
     client.release()
 })
 
@@ -92,7 +94,7 @@ app.get("/search/:countryName/:indicatorCode", async (req, res) => {
         countryName,
         indicatorCode,
     ])
-    res.send(queryResult.rows).status(200)
+    res.status(200).send(queryResult.rows)
     client.release()
 })
 
@@ -108,7 +110,7 @@ app.get("/search/:countryName/:indicatorCode/:year", async (req, res) => {
         indicatorCode,
         year,
     ])
-    res.send(queryResult.rows).status(200)
+    res.status(200).send(queryResult.rows)
     client.release()
 })
 
@@ -128,8 +130,7 @@ app.get(
             lowerYear,
             upperYear,
         ])
-        res.send(queryResult.rows)
-        res.status(200)
+        res.status(200).send(queryResult.rows)
         client.release()
     }
 )
@@ -146,10 +147,10 @@ app.post("/signup", validation(userSignUpSchema), async (req, res) => {
     client
         .query(insertUserQuery, [email, hashedPass, salt])
         .then(() => {
-            res.send("Successfully created user").status(200)
+            res.status(200).send("Successfully created user")
         })
         .catch((error) => {
-            res.send(error).status(500)
+            res.status(500).send(error)
         })
     client.release()
 })
@@ -158,29 +159,43 @@ app.post("/login", validation(userLoginSchema), async (req, res) => {
     const { email, password } = req.body
 
     const client = await usersPool.connect()
-    const getAllData = "SELECT hashed_password FROM users WHERE email = $1"
-    let passwordsAreEqual
+    const getAllData =
+        "SELECT user_id, hashed_password FROM users WHERE email = $1"
     client
         .query(getAllData, [email])
         .then(async (queryResult) => {
-            let [hashedPass] = queryResult.rows
-            hashedPass = hashedPass.hashed_password
-            passwordsAreEqual = await bcrypt.compare(password, hashedPass)
+            const [userInfo] = queryResult.rows
+            if (userInfo.length === 0) {
+                return res.status(400).send("Email is invalid")
+            }
+            const hashedPass = userInfo.hashed_password
+            const userID = userInfo.user_id
+            const passwordsAreEqual = await bcrypt.compare(password, hashedPass)
             if (passwordsAreEqual) {
-                res.send("success").status(200)
+                const newSessionID = uuidv4()
+                client.query(
+                    "INSERT INTO sessions (uuid, user_id) VALUES ($1, $2)",
+                    [newSessionID, userID]
+                )
+                res.cookie("worldBankAppSessionID", newSessionID, {
+                    maxAge: 120000,
+                })
+                    .status(200)
+                    .send("success")
             } else {
-                res.send("Password is invalid").status(400)
+                res.status(400).send("Password is invalid")
             }
         })
         .catch((error) => {
-            res.send({ error }).status(500)
+            console.log(error)
+            res.status(500).send({ error })
         })
     client.release()
 })
 
 app.get("/history", async (req, res) => {
     const { user_id } = req.body
-    const client = await historyPool.connect()
+    const client = await usersPool.connect()
     let getAllHistory
     user_id === undefined //or admin ID no.
         ? (getAllHistory = "SELECT * FROM history") //May need to limit this later
@@ -188,27 +203,42 @@ app.get("/history", async (req, res) => {
     const queryResult = await client
         .query(getAllHistory)
         .catch((error) => console.log("ERROR BRO! " + error))
-    res.send(queryResult.rows)
-    res.status(200)
+    res.status(200).send(queryResult.rows)
+    client.release()
+})
+
+app.post("/postHistory", async (req, res) => {
+    const { countryOne, countryTwo, indicatorName, yearOne, yearTwo, user_id } =
+        req.body
+    const client = await usersPool.connect()
+    const postHistory =
+        "INSERT INTO history (country_1, country_2, indicator, year_1, year_2, user_id) VALUES ($1, $2, $3, $4, $5, $6)"
+    const queryResult = await client
+        .query(postHistory, [
+            countryOne,
+            countryTwo,
+            indicatorName,
+            yearOne,
+            yearTwo,
+            user_id,
+        ])
+        .catch((error) => console.log("ERROR BRO! " + error))
+    res.status(200).send("success")
     client.release()
 })
 
 app.get("/username/:userId", async (req, res) => {
     const user_id = req.params.userId
-    console.log("userid is...")
-    console.log(user_id)
     if (user_id === "undefined" || undefined) {
-        res.send("Error")
-        res.status(400)
+        res.status(400).send("Error")
     }
-    const client = await historyPool.connect()
+    const client = await usersPool.connect()
     const getUsername = "SELECT email FROM users WHERE user_id = $1"
     const queryResult = await client
         .query(getUsername, [user_id])
         .catch((error) => console.log("ERROR BRO! " + error))
     if (user_id !== undefined || "undefined") {
-        res.send(queryResult.rows)
-        res.status(200)
+        res.status(200).send(queryResult.rows)
     }
     client.release()
 })
