@@ -22,7 +22,10 @@ const worldBankPool = new Pool({
 
 createThetaView()
 
-const whitelist = ["http://localhost:3000"]
+const whitelist = [
+    "http://localhost:3000",
+    "https://secure-bayou-25544.herokuapp.com",
+]
 const corsOptions = {
     credentials: true, // This is important.
     origin: (origin, callback) => {
