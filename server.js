@@ -25,6 +25,7 @@ createThetaView()
 const whitelist = [
     "http://localhost:3000",
     "https://world-bank-indicators.netlify.app",
+    "https://world-development-indicators.netlify.app",
 ]
 const corsOptions = {
     credentials: true, // This is important.
