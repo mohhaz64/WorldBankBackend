@@ -28,6 +28,7 @@ const whitelist = [
     "https://world-development-indicators.netlify.app",
     "https://world-bank-indicators.com/",
 ]
+
 const corsOptions = {
     credentials: true, // This is important.
     origin: (origin, callback) => {
