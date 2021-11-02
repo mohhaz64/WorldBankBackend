@@ -26,6 +26,7 @@ const whitelist = [
     "http://localhost:3000",
     "https://world-bank-indicators.netlify.app",
     "https://world-development-indicators.netlify.app",
+    "https://world-bank-indicators.com/",
 ]
 const corsOptions = {
     credentials: true, // This is important.
