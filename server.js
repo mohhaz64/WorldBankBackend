@@ -46,6 +46,8 @@ app.use(cookieParser())
 app.get("/sessions", (req, res) => {
     if (req.cookies.worldBankAppSessionID) {
         res.status(200).send("success")
+    } else {
+        res.sendStatus(401)
     }
 })
 
@@ -168,6 +170,8 @@ app.post("/login", validation(userLoginSchema), async (req, res) => {
                 )
                 res.cookie("worldBankAppSessionID", newSessionID, {
                     maxAge: 120000,
+                    sameSite: "none",
+                    secure: true,
                 })
                     .status(200)
                     .send("success")
